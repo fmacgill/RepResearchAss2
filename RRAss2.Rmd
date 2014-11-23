@@ -1,0 +1,97 @@
+---
+title: "USA Storm Data Analysis"
+output: html_document
+---
+
+# USA Storm impacts on health and economics
+
+Load and reduce data to most relevant variables
+
+Data clean up
+- Reduce the variables to health and economcis data
+- include data 1996-2010 for which complete anual data, 
+
+
+Date selection criteria
+    - Post 1996 the event types utlised by NOO are consistent http://www.ncdc.noaa.gov/stormevents/details.jsp
+    
+
+
+```{r load_data}
+stormAll <- read.csv("repdata-data-StormData.csv")
+
+```
+
+### Data Reduction
+    - Reduce the variables to health and economcis data
+    - include data 1996-2010 for which complete anual data, 
+
+
+Date selection criteria
+    - Post 1996 the event types utlised by NOO are consistent http://www.ncdc.noaa.gov/stormevents/details.jsp
+    
+```{r reduce_data}
+cols <- c('STATE', 'EVTYPE', 'BGN_DATE', 'END_DATE', 'COUNTYNAME','FATALITIES','INJURIES','PROPDMG', 'PROPDMGEXP','CROPDMG','CROPDMGEXP','REMARKS')
+stormBig <- subset(stormAll, select = cols)
+stormBig$BGN_DATE <- as.POSIXlt(as.character(stormBig$BGN_DATE),format="%m/%d/%Y %H:%M:%S")
+stormBig$END_DATE <- as.POSIXlt(as.character(stormBig$END_DATE),format="%m/%d/%Y %H:%M:%S")
+
+startdate <- as.POSIXlt("01/01/1996", format="%m/%d/%Y")
+enddate <- as.POSIXlt("12/31/2010", format="%m/%d/%Y")
+
+storm <- subset(stormBig,trunc(stormBig$BGN_DATE,"days") >= startdate)
+storm <- subset(storm,trunc(storm$END_DATE,"days") <= enddate)
+
+```
+```{r event_types}
+storm$EVTYPE <- toupper(storm$EVTYPE)
+storm$EVTYPE[grep('TSTM', storm$EVTYPE)] <- 'THUNDERSTORM WIND'
+storm$EVTYPE[grep('RIP CURRENT', storm$EVTYPE)] <- 'RIP CURRENT'
+storm$EVTYPE[grep('WILD.*FIRE',storm$EVTYPE)] <- 'WILDFIRE'
+storm$EVTYPE[grep('HURRICANE',storm$EVTYPE)] <- 'HURRICANE (TYPHOON)'
+storm$EVTYPE[grep('TYPHOON',storm$EVTYPE)] <- 'HURRICANE (TYPHOON) '
+
+
+```
+
+## Health Effects
+Reduce data set
+
+```{r health_data}
+cols <- c('EVTYPE','FATALITIES','INJURIES')
+
+health <- subset(storm,storm$FATALITIES > 0 | storm$INJURIES > 0 )
+health <- subset(health, select = cols)
+
+# Event type consolidation
+health$EVTYPE <- toupper(health$EVTYPE)
+
+
+healthSum <- aggregate(. ~ EVTYPE,data = health, FUN = sum)
+
+orderHealthSummary <- healthSum[order(-healthSum$FATALITIES),]
+top10 <- orderHealthSummary[1:10,]
+```
+
+```{r plot}
+require(reshape)
+require(ggplot2)
+t10 <- subset(top10,select=cols)
+t10<-melt(t10,id=c('EVTYPE'),variable_name = 'HEALTHIMPACT')
+
+p <- ggplot(t10, aes(x=as.factor(t10$EVTYPE), y= value, fill=t10$HEALTHIMPACT)) +
+    geom_bar( stat = "identity") +
+    coord_flip() 
+p <- p + xlab("Event Type")
+p <- p +  ylab("Incidents")
+p <- p + ggtitle("Top 10 Fatal USA Storm Event Type 1996-2010")
+p <- p + guides(fill=guide_legend(title=""))
+p
+
+
+```
+
+```{r old}
+
+cols <- c('STATE', 'EVTYPE', 'BGN_DATE', 'END_DATE', 'COUNTYNAME','FATALITIES','INJURIES','PROPDMG', 'PROPDMGEXP','CROPDMG','CROPDMGEXP','REMARKS')
+```
