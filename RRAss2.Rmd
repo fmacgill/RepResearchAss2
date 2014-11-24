@@ -5,6 +5,16 @@ output: html_document
 
 # USA Storm impacts on health and economics
 
+## Synopsis
+
+Across the United States, Storm and other severe events have adverse health and economic consequences.
+
+The most 2 most determiental event to population health are Excessive Heat and Tornados between 1996 and 2010. Excessive Heat resulted in almost 1,800 premature deaths, and more than 6000 individuals to require medical treatment. As for injuries counts, Tornados have the greatest impact, 14500 injuries were attributed to Tornados over the 10 year period, and over 900 fatalities.
+
+Across the United States, which types of events have the greatest economic consequences?
+## Data Processing
+
+
 Load and reduce data to most relevant variables
 
 Data clean up
@@ -18,6 +28,7 @@ Date selection criteria
 
 
 ```{r load_data}
+# load data
 stormAll <- read.csv("repdata-data-StormData.csv")
 
 ```
@@ -31,7 +42,7 @@ Date selection criteria
     - Post 1996 the event types utlised by NOO are consistent http://www.ncdc.noaa.gov/stormevents/details.jsp
     
 ```{r reduce_data}
-cols <- c('STATE', 'EVTYPE', 'BGN_DATE', 'END_DATE', 'COUNTYNAME','FATALITIES','INJURIES','PROPDMG', 'PROPDMGEXP','CROPDMG','CROPDMGEXP','REMARKS')
+cols <- c('STATE', 'EVTYPE', 'BGN_DATE', 'END_DATE', 'FATALITIES','INJURIES','PROPDMG', 'PROPDMGEXP','CROPDMG','CROPDMGEXP')
 stormBig <- subset(stormAll, select = cols)
 stormBig$BGN_DATE <- as.POSIXlt(as.character(stormBig$BGN_DATE),format="%m/%d/%Y %H:%M:%S")
 stormBig$END_DATE <- as.POSIXlt(as.character(stormBig$END_DATE),format="%m/%d/%Y %H:%M:%S")
@@ -43,6 +54,8 @@ storm <- subset(stormBig,trunc(stormBig$BGN_DATE,"days") >= startdate)
 storm <- subset(storm,trunc(storm$END_DATE,"days") <= enddate)
 
 ```
+
+### Event Type Clean up
 ```{r event_types}
 storm$EVTYPE <- toupper(storm$EVTYPE)
 storm$EVTYPE[grep('TSTM', storm$EVTYPE)] <- 'THUNDERSTORM WIND'
@@ -51,24 +64,48 @@ storm$EVTYPE[grep('WILD.*FIRE',storm$EVTYPE)] <- 'WILDFIRE'
 storm$EVTYPE[grep('HURRICANE',storm$EVTYPE)] <- 'HURRICANE (TYPHOON)'
 storm$EVTYPE[grep('TYPHOON',storm$EVTYPE)] <- 'HURRICANE (TYPHOON) '
 
-
 ```
 
-## Health Effects
-Reduce data set
+### Exponent Clean up
+```{r exponent_cleanup}
+storm$CROPDMGEXP <- toupper(storm$CROPDMGEXP)
+storm$PROPDMGEXP <- toupper(storm$PROPDMGEXP)
 
+storm$CROPMULTIPLER[storm$CROPDMGEXP == ""] <- 1
+storm$CROPMULTIPLER[storm$CROPDMGEXP == "H"] <- 100
+storm$CROPMULTIPLER[storm$CROPDMGEXP == "K"] <- 1000
+storm$CROPMULTIPLER[storm$CROPDMGEXP == "M"] <- 1000000
+storm$CROPMULTIPLER[storm$CROPDMGEXP == "B"] <- 1000000000
+
+storm$PROPMULTIPLER[storm$PROPDMGEXP == ""] <- 1
+storm$PROPMULTIPLER[storm$PROPDMGEXP == "H"] <- 100
+storm$PROPMULTIPLER[storm$PROPDMGEXP == "K"] <- 1000
+storm$PROPMULTIPLER[storm$PROPDMGEXP == "M"] <- 1000000
+storm$PROPMULTIPLER[storm$PROPDMGEXP == "B"] <- 1000000000
+
+storm$CROPDMG[is.na(storm$CROPDMG)] <- 0
+storm$PROPDMG[is.na(storm$PROPDMG)] <- 0
+
+storm$CROP <- storm$CROPDMG*storm$CROPMULTIPLER
+storm$PROP <- storm$PROPDMG*storm$PROPMULTIPIER
+
+
+```
+## Results
+
+### Health Effects
+
+The health impacts of severe events can be quanitified according to fatalities and 
+injuries. Fatalities are more concerning that injuries, accordingly, only fatalities are considered
+for ordering of the events with the greatest impact. While both fatalities and injuries have been presented in visual summary
 ```{r health_data}
 cols <- c('EVTYPE','FATALITIES','INJURIES')
 
 health <- subset(storm,storm$FATALITIES > 0 | storm$INJURIES > 0 )
 health <- subset(health, select = cols)
 
-# Event type consolidation
-health$EVTYPE <- toupper(health$EVTYPE)
-
-
 healthSum <- aggregate(. ~ EVTYPE,data = health, FUN = sum)
-
+# Order by Fatal
 orderHealthSummary <- healthSum[order(-healthSum$FATALITIES),]
 top10 <- orderHealthSummary[1:10,]
 ```
@@ -84,12 +121,16 @@ p <- ggplot(t10, aes(x=as.factor(t10$EVTYPE), y= value, fill=t10$HEALTHIMPACT)) 
     coord_flip() 
 p <- p + xlab("Event Type")
 p <- p +  ylab("Incidents")
-p <- p + ggtitle("Top 10 Fatal USA Storm Event Type 1996-2010")
+p <- p + ggtitle("USA Deadliest Severe Event Types 1996-2010")
 p <- p + guides(fill=guide_legend(title=""))
 p
 
+```
 
+## Economic Impacts
 
+```{r economic}
+EXP 
 ```
 
 ```{r old}
